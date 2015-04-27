@@ -167,3 +167,67 @@ ORIGINY=$(( LASTROW / 2 ))
 POSX=$ORIGINX
 POSY=$ORIGINY
 
+#pad out the arrays
+ZEROES=`echo |awk '{printf("%0"'"SNAKESIZE"'"d/n",$1)}' | sed 's/0/0 /g'`
+LASTPOSX=( $ZEROES )
+LASTPOSY=( $ZEROES )
+
+SCORE=0
+
+clear
+echo "
+Keys:
+  
+  W - UP
+  S - DOWN
+  A - LEFT
+  D - RIGHT
+  X - QUIT
+
+If characters do not display properly, consider changing variables in centipede
+Press return to continue
+"
+
+stty -echo
+tput civis
+read RTN
+tput setb 0
+tput bold
+clear
+drawborder
+update score 0
+
+# Drawing the first apple on the screen
+# (because of collision detection, apple will not draw over a snake)
+
+drawapple
+sleep 1
+trap move ALRM
+
+#Pick a random direction to start moving in
+DIRECTIONS=( u d l r )
+randomchar "${DIRECTIONS[@]}"
+
+sleep 1
+move
+while:
+do
+	read -s -n 1 key
+	case "$key" in
+	w)	DIRECTION="u";;
+	s)	DIRECTION="d";;
+	a)	DIRECTION="l";;
+	d)	DIRECTION="r";;
+	x)	tput cup $COLS 0
+		echo "Quitting..."
+		tput cvvis
+		stty echo
+		tput reset
+		printf "Bye bye!\n"
+		trap exit ALRM
+		sleep $DELAY
+		exit 0
+		;;
+	case
+done
+		
