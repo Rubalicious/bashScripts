@@ -1,0 +1,169 @@
+#Centipede game
+drawborder(){
+	#Draw top
+	tput setf 6
+	tput cup $FIRSTROW $FIRSTCOL
+	x=$FIRSTCOL
+	while [ "$x" -le "LASTCOL" ];
+	do
+	printf %b "$WALLCHAR"
+	x=$(( $x + 1));
+	done
+ 	tput setf 9
+}
+
+apple(){
+	#pick coordinates in the game area
+	APPLEX=$[( $RANDOM % ( $[ $AREAMAXX - $AREAMINX ] + 1 ) ) + $AREAMINX ]
+	APPLEY=$[( $RANDOM % ( $[ $AREAMAXY - $AREAMINY ] + 1 ) ) + $AREAMINY ]
+}
+
+drawapple(){
+	#check that we haven't chosen an occupied space
+	LASTEL=$(( ${#LASTPOSX[@]} - 1 ))
+	x=0
+	apple
+	while [ "$x" -le "$LASTEL" ];
+	do
+		if [ "$APPLEX" = "${LASPOSX[$x]}" ] && [ "$APPLEY" = "${LASTPOSY[$x]}" ];
+		then
+			#these are invalid coordinates
+			x=0
+			apple
+		else
+			x=$(( $x + 1 ))
+		fi
+	done
+	tput setf 4
+	tput cup $APPLEY $APPLEX
+	printf %b "$APPLECHAR"
+	tput setf 9
+}
+
+growsnake(){
+	#pad out the arrays the with the oldest position 3 times to make the snake bigger
+	LASTPOSX=( ${LASTPOSX[0] $LASTPOSX[0] $LASTPOSX[0] $LASTPOSX[@] } )
+	LASTPOSY=( ${LASTPOSY[0] $LASTPOSY[0] $LASTPOSY[0] $LASTPOSY[@] } )
+	RET=1
+	while [ "$RET" -eq "1" ];
+	do
+		apple
+		RET=$?
+	done
+	drawapple
+}
+
+move(){
+	case "DIRECTION" in
+		u) POSY=$(( $POSY - 1 ));;
+		d) POSY=$(( $POSY + 1 ));;
+		l) POSX=$(( $POSX - 1 ));;
+		r) POSX=$(( $POSX + 1 ));;
+	esac
+	
+	#collision detection
+	( sleep $DELAY && ill -ALRM $$ ) &
+	if [ "$POSX" -le "$FIRSTCOL" ] || [ "$POSX" -ge "$LASTCOL" ];
+	then
+		tput cup $(( $LASTROW + 1 )) 0
+		stty echo
+		echo "GAME OVER: you hit a wall!"
+		gameover
+	elif [ "$POSY" -le "$FIRSTROW" ] || [ "$POSY" -ge "$LASTROW" ];
+	then
+		tput cup $(( $LASTCOL + 1 )) 0
+		stty echo
+		echo "GAME OVER: you hit a wall!"
+		gameover
+	fi
+	
+	#Get last element of array ref
+	LASTEL=$(( ${LASTPOSX[@]} - 1 ))
+	#tput cup $ROWS 0
+	#printf "LASTEL: $LASTEL"
+
+	x=1 # set starting element to 1 as pos 0 should be undrawn further down (end of tail)
+	while [ "$x" -le "$LASTEL" ];
+	do
+		if [ "$POSX" = "${LASTPOSX[$x]}" ] && [ "$POSY" = "${LASTPOSY[$x]}" ];
+		then
+			tput cup $(( $LASTROW + 1 )) 0
+			echo "GAME OVER: You ate yourself"
+			gameover
+		fi
+		x=$(( $x + 1 ))
+	done
+	
+	#now clear the oldest position on the screen
+	tput cup ${LASTPOSY[0]} ${LASTPOSX[0]}
+	printf " "
+	
+	#truncate position history by 1 (get rid of oldest)
+	LASTPOSX=( `echo "${LASTPOSX[@]}" | cut -d " " -f 2-` $POSX )
+	LASTPOSY=( `echo "${LASTPOSY[@]}" | cut -d " " -f 2-` $POSY )
+	tput cup 1 10
+	#echo "LASTPOSX array ${LASTPOSX[@]} LASTPOSY array ${LASTPOSY[@]}"
+	tput cup 2 10
+	echo "SIZE=${#LASTPOSX[@]}"
+
+	#update position history (add last to highest val)
+	LASTPOSX[$LASTEL]=$POSX
+	LASTPOSY[$LASTEL]=$POSY
+	
+	#plot new position
+	tput setf 2
+	tput cup $POSY $POSX
+	printf %b "$SNAKECHAR"
+	tput setf 9
+
+	#Check if we hit an apple
+	if [ "$POSX" -eq "$APPLEX" ] && [ "$POSY" -eq "$APPLEY" ]; then
+		growsnake
+		updatescore 10
+	fi
+	
+}
+
+updatescore(){
+	SCORE=$(( $SCORE + $1 ))
+	tput cup 2 30
+	printf "SCORE: $SCORE"
+} 
+
+randomchar(){
+	[ $# -eq 0 ] $$ return 1
+	n=$(( ($RANDOM % $#) + 1 ))
+	eval DIRECTION=\${$n}
+}
+
+gameover(){
+	tput cvvis
+	stty echo
+	sleep $DELAY
+	trap exit ALRM
+	tput cup $ROWS 0
+	exit
+}
+
+########################END OF FUNCTIONS##########################
+
+SNAKECHAR="@"
+WALLCHAR="X"
+APPLECHAR="o"
+
+SNAKESIZE=3
+DELAY=0.2
+FIRSTROW=3
+FIRSTCOL=1
+LASTCOL=40
+LASTROW=20
+AREAMAXX=$(( $LASTCOL - 1 ))
+AREAMINX=$(( $FIRSTCOL + 1 ))
+AREAMAXY=$(( $LASTROW - 1 ))
+AREAMINY=$(( $FIRSTROW + 1 ))
+ROWS=`tput lines`
+ORIGINX=$(( LASTCOL / 2 ))
+ORIGINY=$(( LASTROW / 2 ))
+POSX=$ORIGINX
+POSY=$ORIGINY
+
