@@ -4,7 +4,7 @@ drawborder(){
 	tput setf 6
 	tput cup $FIRSTROW $FIRSTCOL
 	x=$FIRSTCOL
-	while [ "$x" -le "LASTCOL" ];
+	while [ "$x" -le "$LASTCOL" ];
 	do
 	printf %b "$WALLCHAR"
 	x=$(( $x + 1));
@@ -62,7 +62,7 @@ move(){
 	esac
 	
 	#collision detection
-	( sleep $DELAY && ill -ALRM $$ ) &
+	( sleep $DELAY && kill -ALRM $$ ) &
 	if [ "$POSX" -le "$FIRSTCOL" ] || [ "$POSX" -ge "$LASTCOL" ];
 	then
 		tput cup $(( $LASTROW + 1 )) 0
@@ -78,7 +78,7 @@ move(){
 	fi
 	
 	#Get last element of array ref
-	LASTEL=$(( ${LASTPOSX[@]} - 1 ))
+	LASTEL=$(( ${#LASTPOSX[@]} - 1 ))
 	#tput cup $ROWS 0
 	#printf "LASTEL: $LASTEL"
 
@@ -131,7 +131,7 @@ updatescore(){
 } 
 
 randomchar(){
-	[ $# -eq 0 ] $$ return 1
+	[ $# -eq 0 ] && return 1
 	n=$(( ($RANDOM % $#) + 1 ))
 	eval DIRECTION=\${$n}
 }
@@ -195,7 +195,7 @@ tput setb 0
 tput bold
 clear
 drawborder
-update score 0
+updatescore 0
 
 # Drawing the first apple on the screen
 # (because of collision detection, apple will not draw over a snake)
@@ -210,7 +210,7 @@ randomchar "${DIRECTIONS[@]}"
 
 sleep 1
 move
-while:
+while :
 do
 	read -s -n 1 key
 	case "$key" in
@@ -228,6 +228,6 @@ do
 		sleep $DELAY
 		exit 0
 		;;
-	case
+	esac
 done
 		
